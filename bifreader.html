@@ -6,488 +6,335 @@
 
 <meta http-equiv="content-type" content="text/html; charset=UTF-8">
 
-<style>
-  body { 
-	font: 14px Arial; 
-  }
-
-  #byte_content {
-    margin: 5px 0;
-    max-height: 100px;
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
-  
-  #byte_range { 
-	margin-top: 5px; 
-  }
+<style type="text/css">
+    body { 
+        font: 14px Arial; 
+    }
 </style>
 
 <script type="text/javascript">
 
-	var finalBinary;
-	var bifImageCount = 0;
-	var bifFrameIndex = 0;
-	
-	var BifParser = {
-	
-		reset: function() {
-			finalBinary = "";
-			bifImageCount = 0;
-			bifFrameIndex = 0;
-		},
-	
-		getHeaderInfo: function(b) {
-			var magicIdentifier = [b[0].charCodeAt(0) & 0xff, b[1].charCodeAt(0) & 0xff, 
-								   b[2].charCodeAt(0) & 0xff, b[3].charCodeAt(0) & 0xff, 
-								   b[4].charCodeAt(0) & 0xff, b[5].charCodeAt(0) & 0xff, 
-								   b[6].charCodeAt(0) & 0xff, b[7].charCodeAt(0) & 0xff, 
-								   b[8].charCodeAt(0) & 0xff];
-			console.log("---- var magicIdentifier = ", magicIdentifier);
-			document.getElementById("magic").innerHTML = "magicIdentifier = " + magicIdentifier;
-	
-			var versionBytes = [b[8].charCodeAt(0) & 0xff, b[9].charCodeAt(0) & 0xff,
-								b[10].charCodeAt(0) & 0xff, b[11].charCodeAt(0) & 0xff];
-			var version = ByteUtilites.getIntAt(versionBytes,0);
-			console.log("---- var version = ", version);
-			document.getElementById("version").innerHTML = "version = " + version;
-	
-			var imageCountBytes = [b[12].charCodeAt(0) & 0xff, b[13].charCodeAt(0) & 0xff,
-								   b[14].charCodeAt(0) & 0xff,b[15].charCodeAt(0) & 0xff];
-			var imageCount = ByteUtilites.getIntAt(imageCountBytes,0)
-			console.log("---- var imageCount = ", imageCount);
-			document.getElementById("imageCount").innerHTML = "imageCount = " + imageCount;
-	
-			var timestampMultiplerBytes = [b[16].charCodeAt(0) & 0xff, b[17].charCodeAt(0) & 0xff,
-										   b[18].charCodeAt(0) & 0xff, b[19].charCodeAt(0) & 0xff];
-			var timestampMultipler = ByteUtilites.getIntAt(timestampMultiplerBytes,0)
-			console.log("---- var timestampMultipler = ", timestampMultipler);
-			document.getElementById("timestampMultipler").innerHTML = "timestampMultipler = " + timestampMultipler + " ms";
-		
-			return imageCount;
-		},
+    var BifParser = {
 
-		getVisibleFrames: function(b, index) {
-	
-			var count = 0;
-			var bifIndexSearchAtPosition = 64 + (8 * index);
-			var frameOffset = 0;
-			var previousFrameOffset = 0;
-			var offsetMessageInfo = "";
-	
-			while(count <= WebBrowserInterface.imageFrameCount  /*index != -1*/) {
-	
-				var indexBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+1].charCodeAt(0) & 0xff,
-								  b[bifIndexSearchAtPosition+2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+3].charCodeAt(0) & 0xff];
-				index = ByteUtilites.getIntAt(indexBytes,0);
-				console.log("---- var index = ", index);
-		
-				bifIndexSearchAtPosition += 4;
-	
-				var frameOffsetBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+1].charCodeAt(0) & 0xff,
-								b[bifIndexSearchAtPosition+2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+3].charCodeAt(0) & 0xff];
-				frameOffset = ByteUtilites.getIntAt(frameOffsetBytes,0);
-				console.log("---- var frameOffset = ", frameOffset);
-				
-				offsetMessageInfo += " index: " + index + " fos bytes: " + frameOffset + "<br />";
-		
-				if ( count > 0 ) {
+        getMagicString: function(b) {
+            var magicIdentifier = [b[0].charCodeAt(0) & 0xff, b[1].charCodeAt(0) & 0xff, 
+                                   b[2].charCodeAt(0) & 0xff, b[3].charCodeAt(0) & 0xff, 
+                                   b[4].charCodeAt(0) & 0xff, b[5].charCodeAt(0) & 0xff, 
+                                   b[6].charCodeAt(0) & 0xff, b[7].charCodeAt(0) & 0xff, 
+                                   b[8].charCodeAt(0) & 0xff];
+            //console.log("---- var magicIdentifier = ", magicIdentifier);
+            document.getElementById("magic").innerHTML = "magicIdentifier = " + magicIdentifier;
 
-					var j = 0;
-					//var buffer = Array();
-					var buffer = "";
+            return magicIdentifier;
+        },
+		
+        validateBifMagicString: function(magicIdentifier) {
+            // spot check
+            if ( magicIdentifier[0] != 137 || magicIdentifier[6] != 26 ) {
+                return false;
+            }
+
+            return true;
+        },
+		
+        getHeaderValue: function(b, title) {
+            var rawBytes = [b[0].charCodeAt(0) & 0xff, b[1].charCodeAt(0) & 0xff,
+                            b[2].charCodeAt(0) & 0xff, b[3].charCodeAt(0) & 0xff];
+            var value = ByteUtilites.shift32Bits(rawBytes,0)
+
+            // console.log("---- var " + title + " = ", value);
+            document.getElementById(title).innerHTML = title + " = " + value;
+
+            return value;
+        },
+
+        getHeaderInfo: function(b) {
+            if( !b || b.length < 64 ) {
+                return 0;
+            }
+			
+            magicString = this.getMagicString(b.slice(0,9));
+
+            if ( !this.validateBifMagicString(magicString) ) {
+                return 0;
+            }
+
+            var version = this.getHeaderValue(b.slice(8,12), "version");
+            var imageCount = this.getHeaderValue(b.slice(12,16), "imageCount");
+            var timestampMultipler = this.getHeaderValue(b.slice(16,20), "timestampMultipler");
+
+            return imageCount;
+        },
+
+        getVisibleFrames: function(b, index) {
+            var count = 0;
+            var bifIndexSearchAtPosition = 64 + (8 * index);
+            var frameOffset = 0;
+            var previousFrameOffset = 0;
+            var offsetMessageInfo = "";
+            var forwardPNGEncodeString = "data:image/png;base64,"
+            var forwardJPEGEncodeString = "data:image/jpeg;base64,"
+
+            while( count <= WebBrowserInterface.imageFrameCount ) {
+
+                var indexBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+1].charCodeAt(0) & 0xff,
+                                  b[bifIndexSearchAtPosition+2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+3].charCodeAt(0) & 0xff];
+                index = ByteUtilites.shift32Bits(indexBytes,0);
+                // console.log("---- var index = ", index);
+
+                bifIndexSearchAtPosition += 4;
+
+                var frameOffsetBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+1].charCodeAt(0) & 0xff,
+                                        b[bifIndexSearchAtPosition+2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+3].charCodeAt(0) & 0xff];
+                frameOffset = ByteUtilites.shift32Bits(frameOffsetBytes,0);
+                // console.log("---- var frameOffset = ", frameOffset);
+
+                offsetMessageInfo += " index: " + index + " fos bytes: " + frameOffset + "<br />";
+
+                if ( count > 0 ) {
+
+                    var j = 0;
+                    var buffer = "";
+
+                    for (var i = previousFrameOffset; i <= frameOffset-1; i++ ) {
+                        buffer += b[i];
+                        j++;
+                    }
+
+                    // console.log("---- var buffer[] = ", buffer);
+                    // mozilla and webkit specific. Use Base64.encode function if not working.
+                    // var base64Buffer = btoa(buffer);
+
+                    var base64Buffer = ByteUtilites.Base64.encode(buffer);
+                    // console.log("---- var base64Buffer = ", base64Buffer);
+
+                    // dump to the window
+                    if ( count <= WebBrowserInterface.imageFrameCount ) {
+                        finalBase64Encode = forwardJPEGEncodeString + base64Buffer;
+
+                        if ( buffer.slice(1,4) == "PNG" ) {
+                            finalBase64Encode = forwardPNGEncodeString + base64Buffer;
+                        }
+
+                        // console.log("finalBase64Encode = ", finalBase64Encode);
+
+                       document.getElementById("image"+count).setAttribute("src",finalBase64Encode);
+                    }
+                }
+
+                previousFrameOffset = frameOffset;
+                // console.log("---- var previousFrameOffset = ", previousFrameOffset);
+
+                bifIndexSearchAtPosition += 4;
+
+                count += 1;
+            }
+
+            document.getElementById("offsetMessageInfo").innerHTML = "offsetMessageInfo = " + offsetMessageInfo;
+        }
+    }
+
+    var ByteUtilites = {
+        shift32Bits: function(arr, offs) {
+		
+            // console.log("--- shift32Bits in: ", arr);
+
+            // little endianness, shift 4 bytes in reverse
+            var out = (arr[offs+3] << 24) +
+                      (arr[offs+2] << 16) +
+                      (arr[offs+1] << 8) +
+                       arr[offs+0]
+
+            // console.log("--- shift32Bits out: ", out);
+
+            return out;
+        },
+
+        Base64 : {
+
+            _keyStr : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+
+            encode : function (input) {
+                var output = "";
+                var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+                var i = 0;
+
+                while (i < input.length) {
+
+                    chr1 = input.charCodeAt(i++) & 0xff;
+                    chr2 = input.charCodeAt(i++) & 0xff;
+                    chr3 = input.charCodeAt(i++) & 0xff;
+
+                    enc1 = chr1 >> 2;
+                    enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
+                    enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
+                    enc4 = chr3 & 63;
+
+                    if (isNaN(chr2)) {
+                        enc3 = enc4 = 64;
+                    } else if (isNaN(chr3)) {
+                        enc4 = 64;
+                    }
+
+                    output = output +
+                    this._keyStr.charAt(enc1) + this._keyStr.charAt(enc2) +
+                    this._keyStr.charAt(enc3) + this._keyStr.charAt(enc4);
+                }
+
+                return output;
+            }
+			
+        }
+		
+    }
+
+    var WebBrowserInterface = {
+        imageFrameCount: 4,
+        bifImageCount: 0,
+        bifFrameIndex: 0,
+        bifBinary: null,
+
+        reset: function() {
+            this.bifImageCount = 0;
+            this.bifFrameIndex = 0;
+            this.bifBinary = null;
+        },
+
+        uploadBifBlob: function(files) {
+            if (!files) {
+                alert('Files not found!');
+                return;
+            }
+
+            if (!files.length) {
+                alert('Please select a bif file!');
+                return;
+            }
+
+            // reset the indices
+            this.reset();
+
+            var file = files[0];
+            var start = 0;
+            var stop = file.size - 1;
+
+            var reader = new FileReader();
+
+            reader.onloadend = function(evt) {
+                if (evt.target.readyState == FileReader.DONE) {
+                    document.getElementById('byte_range').textContent = file.size + ' byte file'
 					
-					for (var i = previousFrameOffset; i <= frameOffset-1; i++ ) {
-						//buffer[j] = b[i].charCodeAt(0);
-						buffer +=  b[i];
-						j++;
-					}
-			
-					//console.log("---- var buffer[] = ", buffer);
-					//var base64Buffer = btoa(buffer); //mozilla and webkit specific. Use below if samsung is not working.
-					var base64Buffer = ByteUtilites.Base64.encode(buffer);
-					console.log("---- var base64Buffer = ", base64Buffer);
-			
-					//dump to the window
-					if ( count <= WebBrowserInterface.imageFrameCount ) {
-						var forwardPNGEncodeString = "data:image/png;base64,"
-						var forwardJPEGEncodeString = "data:image/jpeg;base64,"
-			
-						finalBase64Encode = forwardPNGEncodeString + base64Buffer;
-						document.getElementById("image"+count).setAttribute("src",finalBase64Encode);
-					}
-				}
-		
-				previousFrameOffset = frameOffset;
-				console.log("---- var previousFrameOffset = ", previousFrameOffset);
-		
-				bifIndexSearchAtPosition += 4;
-		
-				count += 1;
-			}
-			
-			document.getElementById("offsetMessageInfo").innerHTML = "offsetMessageInfo = " + offsetMessageInfo;
-		}
-	}
-	
-	var ByteUtilites = {
-
-		decimalToHexString: function(number) {
-			return (number+0x10000).toString(16).substr(-4).toUpperCase();
-		},
-
-		decode: function(str,type) {
-			var num=0;
-			var len=4//size(type)-(type.signed?1:0);
-			var totalBits=0;
-			for(var i=0;i<len;i++){
-				num+=(str.charCodeAt(i)<<totalBits);
-				totalBits+=8;
-			}
-			//if(type.signed){
-				var b=str.charCodeAt(size(type)-1);
-				var neg=(b>=128);
-				if(neg){
-					b-=128;
-				}
-				num+=b;
-				num*=(neg?-1:1);
-			//}
-			return num;
-		},
-	
-		tNeck: function(byteArray) {
-			var str = '';
-			for (var i = 0; i < byteArray.length; i++)
-				str +=  byteArray[i] <= 0x7F?
-						byteArray[i] === 0x25 ? "%25" : // %
-						String.fromCharCode(byteArray[i]) :
-						"%" + byteArray[i].toString(16).toUpperCase();
-			return decodeURIComponent(str);
-		},
-
-		readBytes: function(hexString, numBytes) {
-			return Number( parseInt( hexString.substr(0, numBytes * (BITS_PER_BYTE/4) ),16 ) );
-		},
-
-		byteArrayToInt: function(b, offset) {
-			var value = 0;
-			for (var i = 0; i < 4; i++) {
-				var shift = (4 - 1 - i) * 8;
-				value += (b[i + offset] & 0x000000FF) << shift;
-			}
-			return value;
-		},
-
-		unsignedIntToLong: function( b, off) {
-			return ((b[0+off].charCodeAt(0) & 0xFF) << 24) | ((b[1+off].charCodeAt(0) & 0xFF) << 16) | ((b[2+off].charCodeAt(0) & 0xFF) << 8) | b[3+off].charCodeAt(0) & 0xFF; 
-		},
-	
-		getIntAt: function(arr, offs ) {
-			//console.log("--- getIntAt in: ", arr);
-
-			// little endianness, shift 4 bytes in reverse
-			var out = (arr[offs+3] << 24) +
-				(arr[offs+2] << 16) +
-				(arr[offs+1] << 8) +
-				arr[offs+0]
-		 
-			//console.log("--- getIntAt out: ", out);
-	
-			return out;
-		},
-
-		Base64 : {
-
-			// private property
-			_keyStr : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
-
-			// public method for encoding
-			encode : function (input) {
-				var output = "";
-				var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
-				var i = 0;
-
-				// remove utf8 encode - all byte characters are >=255
-				// input = Base64._utf8_encode(input);
-
-				while (i < input.length) {
-
-					chr1 = input.charCodeAt(i++) & 0xff;
-					chr2 = input.charCodeAt(i++) & 0xff;
-					chr3 = input.charCodeAt(i++) & 0xff;
-
-					enc1 = chr1 >> 2;
-					enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
-					enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
-					enc4 = chr3 & 63;
-
-					if (isNaN(chr2)) {
-						enc3 = enc4 = 64;
-					} else if (isNaN(chr3)) {
-						enc4 = 64;
-					}
-
-					output = output +
-					this._keyStr.charAt(enc1) + this._keyStr.charAt(enc2) +
-					this._keyStr.charAt(enc3) + this._keyStr.charAt(enc4);
-
-				}
-
-				return output;
-			},
-
-			// private method for UTF-8 encoding
-			_utf8_encode : function (string) {
-				string = string.replace(/\r\n/g,"\n");
-				var utftext = "";
-
-				for (var n = 0; n < string.length; n++) {
-
-					var c = string.charCodeAt(n);
-
-					if (c < 128) {
-						utftext += String.fromCharCode(c);
-					}
-					else if((c > 127) && (c < 2048)) {
-						utftext += String.fromCharCode((c >> 6) | 192);
-						utftext += String.fromCharCode((c & 63) | 128);
-					}
-					else {
-						utftext += String.fromCharCode((c >> 12) | 224);
-						utftext += String.fromCharCode(((c >> 6) & 63) | 128);
-						utftext += String.fromCharCode((c & 63) | 128);
-					}
-
-				}
-
-				return utftext;
-			}
-		}
-	}
-
-	var WebBrowserInterface = {
-	
-		imageFrameCount: 4,
-		
-		uploadBifBlob: function() {
-
-			var files = document.getElementById('files').files;
-			
-			if (!files.length) {
-				alert('Please select a bif file!');
-				return;
-			}
-			
-			// reset the parser indices
-			BifParser.reset();
-
-			var file = files[0];
-			var start = /*parseInt(opt_startByte) ||*/ 0;
-			var stop = /*parseInt(opt_stopByte) ||*/ file.size - 1;
-
-			var reader = new FileReader();
-
-			// If we use onloadend, we need to check the readyState.
-			reader.onloadend = function(evt) {
-				if (evt.target.readyState == FileReader.DONE) { // DONE == 2
-					document.getElementById('byte_range').textContent = ['Read bytes: ', start + 1, ' - ', stop + 1, ' of ', file.size, ' byte file'].join('');
+                    var result = evt.target.result;
+                    WebBrowserInterface.bifBinary = result;
 					
-					finalBinary = null;
-					finalBinary = evt.target.result;
+                    // console.log("WebBrowserInterface.bifBinary = " + WebBrowserInterface.bifBinary);
 					
-					console.log("finalBinary = " + finalBinary);
+                    WebBrowserInterface.bifImageCount = BifParser.getHeaderInfo(result);
 					
-					bifImageCount = BifParser.getHeaderInfo(finalBinary);
-					BifParser.getVisibleFrames(finalBinary, 0);
-				}
-			};
-			
-			reader.onerror = function(evt) {
-				console.log("error reading: code " + evt.target.error.code);
-				
-				switch(evt.target.error.code) {
-				case evt.target.error.NOT_FOUND_ERR:
-					alert('evt.target.error.NOT_FOUND_ERR');
-					break;
-				case evt.target.error.NOT_READABLE_ERR:
-					alert('evt.target.error.NOT_READABLE_ERRR');
-					break;
-				case evt.target.error.ENCODING_ERR:
-					// The length of the data URL for a File or Blob is too long.
-					alert('evt.target.error.ENCODING_ERR');
-					break;
-				case evt.target.error.SECURITY_ERR:
-					// An error not covered by other error codes occured including:
-					// * Certain files are unsafe for access within a Web application.
-					// * Too many read calls are being made on File or Blob resources.
-					// * The file has changed on disk since the user selected it.
-					alert('evt.target.error.SECURITY_ERR');
-					break;
-				case evt.target.error.ABORT_ERR:
-					break; // noop
-				default:
-					alert('An error occurred reading this file.');
-				}
-			}
+                    if( WebBrowserInterface.bifImageCount < 1 ) {
+                        alert('Invalid bif file.');
+                        return;
+                    }
+					
+                    BifParser.getVisibleFrames(result, 0);
+                }
+            };
 
-			if (file.webkitSlice) {
-				var blob = file.webkitSlice(start, stop + 1);
-			} else if (file.mozSlice) {
-				var blob = file.mozSlice(start, stop + 1);
-			} else {
-				var blob = file;
-			}
-				
-			reader.readAsBinaryString(blob);
-		},
-	
-		// support older versions of browsers. Not used.
-		uploadBifFileOldMethod: function() {
-			
-			var bifUpload = document.getElementById("files");
-			var bifFile = bifUpload.files[0];
+            reader.onerror = function(evt) {
+                // console.log("error reading: code " + evt.target.error.code);
 
-			console.log("File name: " + bifFile.fileName);
-			console.log("File size: " + bifFile.fileSize);
-			// console.log("Binary content: " + bifFile.getAsBinary());
-			// console.log("Text content: " + bifFile.getAsText(""));
-	
-			// getAsBinary no longer works in HTML5 browsers
-			// finalBinary = bifFile.getAsBinary();
-			
-			var reader = new FileReader();
+                switch(evt.target.error.code) {
+                case evt.target.error.NOT_FOUND_ERR:
+                    alert('evt.target.error.NOT_FOUND_ERR');
+                    break;
+                case evt.target.error.NOT_READABLE_ERR:
+                    alert('evt.target.error.NOT_READABLE_ERRR');
+                    break;
+                case evt.target.error.ENCODING_ERR:
+                    alert('evt.target.error.ENCODING_ERR');
+                    break;
+                case evt.target.error.SECURITY_ERR:
+                    alert('evt.target.error.SECURITY_ERR');
+                    break;
+                case evt.target.error.ABORT_ERR:
+                    break;
+                default:
+                    alert('An error occurred reading this file.');
+                }
+            }
 
-			reader.onload = function(evt) {
-				console.log("onload");
-				
-				finalBinary = evt.target.result;
-				
-				bifImageCount = BifParser.getHeaderInfo(finalBinary);
-				BifParser.getVisibleFrames(finalBinary, 0);
-			};
-			reader.loadend = function(evt) {
-				console.log("loadend");
-				
-				finalBinary = evt.target.result;
-				
-				bifImageCount = BifParser.getHeaderInfo(finalBinary);
-				BifParser.getVisibleFrames(finalBinary, 0);
-			}
-			
-			reader.onerror = function(evt) {
-				console.log("error reading: code " + evt.target.error.code);
-				
-				switch(evt.target.error.code) {
-				case evt.target.error.NOT_FOUND_ERR:
-					alert('evt.target.error.NOT_FOUND_ERR');
-					break;
-				case evt.target.error.NOT_READABLE_ERR:
-					alert('evt.target.error.NOT_READABLE_ERRR');
-					break;
-				case evt.target.error.ENCODING_ERR:
-					// The length of the data URL for a File or Blob is too long.
-					alert('evt.target.error.ENCODING_ERR');
-					break;
-				case evt.target.error.SECURITY_ERR:
-					// An error not covered by other error codes occured including:
-					// * Certain files are unsafe for access within a Web application.
-					// * Too many read calls are being made on File or Blob resources.
-					// * The file has changed on disk since the user selected it.
-					alert('evt.target.error.SECURITY_ERR');
-					break;
-				case evt.target.error.ABORT_ERR:
-					break; // noop
-				default:
-					alert('An error occurred reading this file.');
-				}
-			}
-			
-			reader.readAsBinaryString(bifFile);
-			
-			//var b = bifFile.getAsText("")
+            var blob = file;
 
-			//console.log("----", b[0].charCodeAt(0), b[1].charCodeAt(0), b[2].charCodeAt(0), b[3].charCodeAt(0), b[4].charCodeAt(0), b[5].charCodeAt(0));
-			//console.log("----", (b[0].charCodeAt(0) & 0xff), (b[1].charCodeAt(0) & 0xff), 
-			//					(b[2].charCodeAt(0) & 0xff), (b[3].charCodeAt(0) & 0xff), 
-			//					(b[4] & 0xff), (b[5] & 0xff));
-			//console.log("----", decimalToHexString(b[0].charCodeAt(0)), decimalToHexString(b[1].charCodeAt(0)), decimalToHexString(b[2].charCodeAt(0)), 
-			//					decimalToHexString(b[3].charCodeAt(0)), decimalToHexString(b[4].charCodeAt(0)), decimalToHexString(b[5].charCodeAt(0)));
-						
-			//for ( var i = 11; i <= 14; i++ ) {
-			//	console.log("----", b[i], " == ", b[i].toString(), " -- ", b[i].charCodeAt(0));
-			//}
+            if (file.webkitSlice) {
+                var blob = file.webkitSlice(start, stop + 1);
+            } else if (file.mozSlice) {
+                var blob = file.mozSlice(start, stop + 1);
+            }
+	
+            reader.readAsBinaryString(blob);
+        },
 
-			//var preview = document.getElementById("preview");
-			//preview.src = file.getAsDataURL();
-	
-			//bifImageCount = BifParser.getHeaderInfo(finalBinary);
-			//BifParser.getVisibleFrames(finalBinary, 0);
+        skipToFrame: function(index) {
+            // console.log("this.bifFrameIndex = " + this.bifFrameIndex + " this.bifImageCount = " + this.bifImageCount);
+            // console.log("this.bifBinary (memory) = " + this.bifBinary.length);
 
-			return false;
-		},
+            // backward protection
+            if ( this.bifFrameIndex + index < 0 ) {
+                return;
+            }
 
-		skipToFrame: function(index) {
-			console.log("bifFrameIndex = " + bifFrameIndex + " bifImageCount = " + bifImageCount);
-	
-			// backward protection
-			if ( bifFrameIndex+index < 0 ) {
-				return;
-			}
-	
-			// forward protection
-			if ( index != -1 && (bifFrameIndex >= (bifImageCount - WebBrowserInterface.imageFrameCount)) ) {
-				return;
-			}
-	
-			bifFrameIndex += index;
-			BifParser.getVisibleFrames(finalBinary, bifFrameIndex);
-		}
-		
-	}
-	
+            // forward protection
+            if ( index != -1 && (this.bifFrameIndex >= (this.bifImageCount - this.imageFrameCount)) ) {
+                return;
+            }
+
+            this.bifFrameIndex += index;
+            BifParser.getVisibleFrames(this.bifBinary, this.bifFrameIndex);
+        }
+
+    }
+
 </script>
 </head>
-<body>
+    <body>
 
-<fieldset>
-	<legend>Upload Bif file</legend>
-	
-	<input type="file" id="files" name="file" /> Read bytes: 
-	<span class="readBytesButtons">
-		<button id="testing">Read and Parse</button>
-	</span>
-	<div id="byte_range"></div>
+    <fieldset>
 
-    <hr>
-	
-	<div id="magic">magicIdentifier = </div>
-	<div id="version">version = </div>
-	<div id="imageCount">imageCount = </div>
-	<div id="timestampMultipler">timestampMultipler = </div>
-	<div id="offsetMessageInfo">offsetMessageInfo = </div><br />
-	
-	<a href="javascript:WebBrowserInterface.skipToFrame(-1);">Backward </a> <img id="image1" /> <img id="image2" /> <img id="image3" /> <img id="image4" /> <img id="image5" /> <a href="javascript:WebBrowserInterface.skipToFrame(1);">Forward </a>
+        <legend>Upload Bif file</legend>
 
-</fieldset>
+        <input type="file" id="files" name="file" /> Read bytes: 
+        <span class="readBytesButtons">
+            <button id="testing">Read and Parse</button>
+        </span>
+        <div id="byte_range"></div>
 
-<script>
+        <hr/>
 
-	document.querySelector('.readBytesButtons').addEventListener('click', function(evt) {
-		if (evt.target.tagName.toLowerCase() == 'button') {
-			var startByte = evt.target.getAttribute('data-startbyte');
-			var endByte = evt.target.getAttribute('data-endbyte');
-			WebBrowserInterface.uploadBifBlob();
-		}
-	}, false);
-	
-</script>
+        <div id="magic">magicIdentifier = </div>
+        <div id="version">version = </div>
+        <div id="imageCount">imageCount = </div>
+        <div id="timestampMultipler">timestampMultipler = </div>
+        <div id="offsetMessageInfo">offsetMessageInfo = </div><br />
 
-<!--
-<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==" alt="Red dot">
-<img src="data:image/png;base64,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" / >
-<img src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCACSAUADASIAAhEBAxEB/8QAHAAAAgIDAQEAAAAAAAAAAAAAAAEEBQIDBgcI/8QAPRAAAgEDAgQEBAQFAQcFAAAAAQIAAwQRITEFEkFRBhMiYRQycaFCgZHBByNSsdEWFSQzNGLw8UNTcoLh/8QAFwEBAQEBAAAAAAAAAAAAAAAAAAECA//EAB8RAQEAAwADAQEBAQAAAAAAAAABAhExAyFBElFScf/aAAwDAQACEQMRAD8A8E6QhmPeGShrAjEM6wAQgYY6wDOkIdIoGUQ7whiAawjigEIQgAxrAxRiAQhiGkAhCGYDVirhhoQcz1nwjxb4q1U21XDFWLIPwN9e208lnT+HLqn4eppxW5RC1VwlFSfVy59TY7SX01jN16zR40Uulp3LBkyRnOqmWt6aKWNatSYN6MjuT7TnOIWFGsvm0ai45fM53GFCkZBLTk73jXwzeSL1GwMehsiZuWnWRnc8QenQWooGaTsh/PJH2MsbvitO5CVy/wDztAqM6AODtOdtKqXbVLbnBaqMKD1YbTVcU6ttZtRq+nB5lB6TnuuiMbNqNY8wJy2PeTkW1tBTr3POSCVprnH1Of8AEqP9Q16K+U9KlUXlwOYeoHvmYNxA3PKalGpU6DOmPpNyacb7rbxHidzeMysBTpjRaajRR2lSxzpJdWomwGnbGokV1Yn5G+sRPTUfpGPeNkZTgg57Sb8Gtprf8yP0t1+c/X+n+8qItGhUrseQDlX5mJwF+pk1alO2UeT/ADa3/ukaL/8AEfuZFr3L1gECrTpL8tNNFH+T7xUm01ham01LVSzHOfVzHrMLyiD6sYwNJnbVNsjMwvX/AJWO5hlWOMNiZAaTKoA1IN+IHH5TBcyK3UDyPz/0KW+0hfXeTD6bWq+d8IPzkKaiZCEPzh0l2yI4oGAQ3ihLsOEMwEAgTDMIBCHSIGA+8W8Mx41gEO8ADDvAcx+scMQHFCECx4LU4VSv+bi9K5qW3IcfDkBg/QnO49p0174ou6QoiyqLT4e9MGiopL6caEHI7/3nESx4fdW7U/gr5nS3Z+daqDLUm2Jx1B0yPaSz61L609nFseMcE4dXt6poLcUAXVRlSQNdJzvG/CdNbk1eHXFvVtwmWWvypUpt1BEv/BFxY1uALw2lf07ypbc3rog6K2o0OxkyvwC2uhz3NemFA35gPrkzOnSccLwmytPMYV6dapVNamKTUGUKDnYsdd8bTf45WnZ3b0q1NQ+f/SP+Ze2lKz/27w+0s66XPLcI7U6IJSminJZmO5yBoJy38RKxq8brZBA5zgTOm3NNxB6NvTW0VKAxguqAux7ljr+0h069arc89SrUZs5LE6zWG5QykZVunv3mSBVYMtTBHcSuVqU6U86KSf7xrR5yMrge0xp1KbHVwD7KZJFRKa83lmoenM3KPtI1NI94eavT8n5ioYsBrn/sSI5YsxclmOpJOSTJdapUqVXquEVqg+VRgAdgOgkMgsxliUhrMgCJiDrpMmOuB+crKVbjKnEL9CoUnbGZstx6cfQTfxWji0VzCKQ5YgdBMygTlw2cjJ9ocpU6iZAqgNR9h07ntDUYXTBUp0uo9bfU7faRo2Yu5djkk5MXWajFuy6wjMWO0qFjWOHWEBQ1j6wxpJQQzCEoOkNxDpFIGNoo4SghAw+sgIbbRQ2lDzFgR9BCAQ9oRHWA+usBEI+sDuP4W8VFh4le0c4S9pcg1/EpyP11E9Pay+Pu3oMoNJ1LggaBskMv55Bnz7bXFW0uaVxRYpVpOHRh0IORPozwzxOhxPgFDiqjArKWZM/K+dR+ombN11wy1G604VY8LurehaUVpvUcc56nAz+08k/iDr4huCNuc5E9YsqvxPGri6qVAKdpSzv+JgR+xnk3jZhUv+fJPP6jneS8b/64+IMM4hyzFlK6iHJJVAw5hvNwfTU9D9pqoZx7GNlKnPSYvW4yquOYVNlYYwO00HAJwdBsZizEqB0GYh8pmpGbQpwczLZvfMSAFsHrpGc5yZUT6OcEj8IBk+rSa7S3p45lDAt9JW0M+WfeW1i452PYaawIFaya0AepyNQ3Uk647YlLcVhVqelcINFXO06zidqtxYqjHlORhj0JnIVaT0Kr0qilXU4IliZMYQhNMl+UIbRSbDhCP+0BQ6whj3igj/KLGI4BDENoSKIQgNpdgxGFzAbzapEg1FcTEib3xjpNJlgUYGdAIjLDh9t5pyRmWoheU/8ASZiVb+nE6gWVMDHLrNFWxQnaY/Ua/LngjH8OZl5TnpOhSypgbCa61qo1Aj9GlF5L9p6r/DTiD/6dv+Gk/wAyjV8xAduVhr9x95wa016rOh8G3PwniSgqkKtwDRbscjT7gR+lx6sK/iCvwziV0hYslwAj8vQ9CPpIl74b49xSzFzTsHdMaVOceod5nc8LqXfjChZnUvWy2B0Gv7T1XApWT0VAARCoA9hM4zfXfOvn+94RdWdCnVrBeRyQCpzqDgiQQhKcv3nY3B+O8NXNLJ57S6L4/wCl/wD9H3nL00+YfpG2MpqsrSnhuQ9dpncpy50iAySvXcTPzPiF5G0qD7+8h8VzbxbTZUUq2swm3M6Y9Yztmb3pEqGxucfnNVP5wOkuKFEPRYFQVxAg0fTSMnWrFaTfX7mRK6ikuBuZMt6ZFFV67yLEvjRK8LLDQqUMw4pwtL/gdHiiL/ORQtbHUDrIfH7olqVovYFp2XAqajhiUXAZSmGHQ5m8Os58eZeRTb5Hye02rZ8wBGZv45w5uE8XrUFzyA81M/8ASdo7WvzpnGo3EWWJParhiEJUKEeYoDijigEI4pAQhvDpAMQhCKpxg4mMcBk5ExhGIQTp+BUlakucbTl51nBFPkL9JjyXUawntOr0xnSR2XElv8xzNLjM4bddIxBmPJzaTfyk9IhTZTkiXaaaTZkjImmm1S0uqdZCQ9Nw4P0OZbIwxg7SJc+SCSSDjebx3WbqO91Pi+jxJaeLd6LcjkaFimdO8nXXiS1s0cNWUu+uBqdRvOXuOL1K/hjhN5bMD8M3ltnuumD+U3+DUt7qrf3lyvrLLTGvyKdZqXV07erJVA1zRsaPEmLqVvEKDAzg82ZzXmor56dRPSfEvFOD00S1+GStrqUVQc/+Z59eU6L1GalTCDqvaNSJfaIK6irkEGbKyBlFSmcEa5E0NSXsZjhkwUJH0j0wlkedQDsMNsZCccrESbbVkem1NgA5/QyLWXlcxEvGCEBwZ0lioa1BJGca9z2nMjedFY1AaagHJ5RiaZQrlea+x+EECTKDA1iMbYX95EY+ZWDncuSf1m1a3lUKlT8WrCZVpuE+K8Q1W3VCo+wnacM/k0des5LhKlSzvqzHJJ6mdElwFogA7TpixkovGjrWu6TjdVwZzdsStUDodDLTj1x51wddpT0zhwSdo2k9MIQzCULEcMxQCG8OscAiMDCAQhHJoY9Y9YdYZjQIRxZgPMIhCIGNSJ2PBxy0BkaYnHoPWv1na8MwKGfac/LxvDrfUGs0sR3mVe6Sk7ppkJkGVoqMzgsxAQczY7xh4f8ARl5P4sErpT6ZJOBB7wkfIuNZAWugdQASVXLZ7mbqdLzQyuOU8wUH+87Tx4sXOtla8CUwVUh379B3lBd3JZmXm0zv3kq6qFS5BPMx5RntKms3qxmMr8SLjw/xJqdweH1nxaXLANnZW6NPRfDHBHs+G3tQuPiK1XkC52Vf8zyWyP8AvKnGZ6h4e8TGolKjeYDKeXm7jpmc7j9dsM/i0HhmleGpUdFBznmxp/3uZx/GeFpQctQQ+WzlAzbmeoVblRa8qNjnPMzZ2H/ieZ8TvBzPQ9RUVXK+0zlJHWe3K3GUbBGNJrT/AIZJ2JwJKvxz1C3XrIQbkUqdpPjnesXIz10mWQ6EOcnoZpY+qY5M0zsfillbXHJTXXUAkyt6zPnKgqDvuYRLNTVUG+MR1KhqOEB9C7+5kWn1PXpNq+kaQLGnVCAYkpbn0kEyoWpiZmqQJdoh3zc9Vj7yD1m+5bLH31miWJRFjQxwmkLBEDHmEBR4gYhrAIZhiLrIGYYhCUB9oQOkNcQDeEY1igGNNYHfEzSkz/SW1lwhqoSow5UJxkjUyybFda21StXQBTvOvZfhOHEto2gmi0o06LYRQvqOp3hxmoTa1UP4cH7TUwk91m5fIqL+8LXdQZzsPymx6pqBjkkkqunaVNZy1Qv1MmWlbIUdebMzv21pKJZqjMNMuFlihD0OZclgSCc9dhKdqgJDA49eZZ8LbmQYA1yxBOmBNSs1E4hyqWqDUfIo+m5lPUOZdcRDth+UBKa406k6yjaYy61OJNh/zAxvOiPpRqVPGcBebues5zh4LXSjuZfOjKVVCFGTqJrFK6a24rXPDKaMWLUfxA9PeV/HLWrTreYtCopKhmUqcjP7e82r5lSy5FPLllU565OJ71ccIs7yyp0a9JSy0hTWoB6gMd5nPxzsbw8tnqvlmsKoc4ViD7SMx5iRykGeh+KfD99wDiDtXty1o5Pl1kGQf8Tgrps1Wcaa6YnKfx0s+ojDB13ixM6dJqnqO3eBwMjeVhrzNiUi2p0E20bZnOeXM3tSK7mEaQuBpEdJmZgRnWAwcQdtJidJqqthfcyiNUbmczAxwM1plualkZE1FSNwZIUlTM8eYMGVUOKbKicp9phCCLrHFFBmHSPpF1gEIdYQDIhDMCIBmbaNLzGGRodsTWBk4lzw+1HltVcYCjKZ6mWTZUjh1gqMj10OpwBLZQVQ5yoCswHuJAt7v4hudjvsPcSfXuRzLnTT1DuDOk051peoKBbmPy0Mj6mV3FbvnqV1HyuimTril5qM2ymh33wZzt1ULLSY/wBOJnKriisdRNtB8Ea4xmaTEJzdEg1TyoM9zLfhXNVUgHIABIlCNxLvg9QorBWAJE1j1m8Y8RLelQ+Qc1GXtmVDS3v6iim5U/zKjEY9hKhoy6s438Pblu1OMy+U+ZWo5YBeY5+s560YLcoT3l5QYk0iNNToekRK6GsRR4ZUbmPMoBGR1E9z8McYp8d8N2N+hBNSkA47MNCP1ngvMKtjVBIBK6L+07z+Ct+78O4jw1zpRqCoo7Z0P3E1n8Zn16Re21G8t6lvcU1ekw9SttifOniSxsLjxBeUuA0nrWlJuXzPwluoU9RPWf4reJH4D4Wa2tqhS8vyaSEHVU/Ef2/OchbcOShwG05aXlKKKkAjGQRnPvmc7Nt42x5pVtryiSGRVx0mfDadCtValXz526DOje31nV8TppSs6lQoNBOBq1CaxYEgg6EHaTTX626M1EVSqgLjoJAqvzMe0wpXRuqRcn+aPn9/eYMZkBhFCAjrNNQYRnOw0H1m8g4Cjc6CN6Qdlpgelf7ywVy03b5VJ94NTZdxiXKUABtMLi35kOms1tGlqAqHmX85sFllcgnMleQaRwZuRsDTEkFDcU2pthtu8jzpa1pTuqeCMMJRXVq1vUwQcSiPFHFiVDiEI9oCwcQgdoCAYjhGAScSDO3Q1KwAnQ3VNqFiiA4A+xkDhVAG6TpgZJljxKoHyrb9O03jxm9U1pcGncnmOcnT6y5uHFWihHXc9ROeqoUqe8mW1yWBXOv94lWxYWtQ1bWqjN6kU4+hlRc/8O32PolragrXcn0qynI7aStvkCJbY35IpEIxRxTKiWvBqvl1m66bSqlhwrBuSDnGOks6VLvChXmICtTXHfJMpm11l1eITTYDUPUPy9hKZ9z0jIh0Ty1VPYy6pswWmdCpJ2MolOGB95c0CHGcgBGyBEKvLKojIVxgcuC3vOx/g0zJ4g4rSxgGiCR/9pxFu9OjTHN6mLBj2EtPDfiOj4aveOXSkirVsjTtx3ctp+g1msuMzpfxH44OO+LbnkbmtrX/AHel203P5nMsfBPia7s7NeFcRope8P3pU6o9SDsp6ThKVN69TU6scljOx4fa+Y1NaZGVUDM4/XXHU6svHtnaDgPxnCKytRY4qUHOKlP/ACJ5GfpOy8YLdUqVs1RVVdRzB9Tr27TjmPOc9ZZTOYy6xrKlUajUV03H3EsMhgKij0nb29pCSlprJFJ+Q8p+Rt/b3istkYgylWKneHTTfYTKs6Q9TOdl0H1m2gob1dzNNcilTFMH6zK0qgaGVFkqaTCqAFMyFZQu8h3FyGyBsYEy4Zsn1H9ZGVmzuf1hCWq2q7BvmP6yNxQk0Tkk/WEJYn1RZh1hCUBMIQgKMQhAczT5xCEgvOHkim5BOcTC8ZiDlj+sITp8Z+qqqSdz1ioEh9zCExFWdJ2wDzH5e/tIt+SVoZJ+QQhNVIgxQhMtETJvDCRdpqYQliVZXZOKGp+R/wC8oydTCEuRGLbiWNFj5I1PzCEJmKtKLMX1JPpPWQeJsxv3yx2HWEJcuM49FuzBhqf1nVcIq1BSr4qMP5XQwhMTrVV/jR3albBnYjA0J9px/aEInESUJxv1gCecawhI0kuxwuphTJ81NTvCEDTdsTUGpipk53MIQjczNrqf1kd2PNuYQlH/2Q==" />
--->
+        <a href="javascript:WebBrowserInterface.skipToFrame(-1);">Backward</a> 
+        <img id="image1" /> 
+        <img id="image2" /> 
+        <img id="image3" /> 
+        <img id="image4" /> 
+        <a href="javascript:WebBrowserInterface.skipToFrame(1);">Forward</a>
 
-</body>
+    </fieldset>
+
+    <script type="text/javascript">
+
+        document.querySelector('.readBytesButtons').addEventListener('click', function(evt) {
+            if (evt.target.tagName.toLowerCase() == 'button') {
+                var files = document.getElementById('files').files;
+                WebBrowserInterface.uploadBifBlob(files);
+           }
+        }, false);
+
+    </script>
+
+    </body>
 </html>
