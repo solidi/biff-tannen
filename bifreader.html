@@ -15,22 +15,12 @@
 <script type="text/javascript">
 
     var BifParser = {
+	
+        headerByteSize: 64,
 
-        getMagicString: function(b) {
-            var magicIdentifier = [b[0].charCodeAt(0) & 0xff, b[1].charCodeAt(0) & 0xff, 
-                                   b[2].charCodeAt(0) & 0xff, b[3].charCodeAt(0) & 0xff, 
-                                   b[4].charCodeAt(0) & 0xff, b[5].charCodeAt(0) & 0xff, 
-                                   b[6].charCodeAt(0) & 0xff, b[7].charCodeAt(0) & 0xff, 
-                                   b[8].charCodeAt(0) & 0xff];
-            //console.log("---- var magicIdentifier = ", magicIdentifier);
-            document.getElementById("magic").innerHTML = "magicIdentifier = " + magicIdentifier;
-
-            return magicIdentifier;
-        },
-		
         validateBifMagicString: function(magicIdentifier) {
-            // spot check
-            if ( magicIdentifier[0] != 137 || magicIdentifier[6] != 26 ) {
+            // 9 byte value
+            if ( magicIdentifier != 1179206281 ) {
                 return false;
             }
 
@@ -38,9 +28,13 @@
         },
 		
         getHeaderValue: function(b, title) {
-            var rawBytes = [b[0].charCodeAt(0) & 0xff, b[1].charCodeAt(0) & 0xff,
-                            b[2].charCodeAt(0) & 0xff, b[3].charCodeAt(0) & 0xff];
-            var value = ByteUtilites.shift32Bits(rawBytes,0)
+            var rawBytes = Array();
+			
+            for ( var i = 0; i < b.length; i++ ) {
+                rawBytes.push(b[i].charCodeAt(0) & 0xff);
+            }
+			
+            var value = ByteUtilites.shift32Bits(rawBytes,0);
 
             // console.log("---- var " + title + " = ", value);
             document.getElementById(title).innerHTML = title + " = " + value;
@@ -49,49 +43,110 @@
         },
 
         getHeaderInfo: function(b) {
-            if( !b || b.length < 64 ) {
-                return 0;
+            if( !b || b.length < this.headerByteSize ) {
+                return false;
             }
 			
-            magicString = this.getMagicString(b.slice(0,9));
+            var magicString = this.getHeaderValue(b.slice(0,9), "magicIdentifier");
 
             if ( !this.validateBifMagicString(magicString) ) {
-                return 0;
+                return false;
             }
 
             var version = this.getHeaderValue(b.slice(8,12), "version");
-            var imageCount = this.getHeaderValue(b.slice(12,16), "imageCount");
+			
+            if ( version != 0 ) {
+                return false;
+            }
+			
+            var imageCount = this.getImageCount(b);
+			
+			if ( imageCount == 0 ) {
+				return false;
+			}
+			
             var timestampMultipler = this.getHeaderValue(b.slice(16,20), "timestampMultipler");
 
-            return imageCount;
+            return true;
         },
+		
+        getImageCount: function(b) {
+            return this.getHeaderValue(b.slice(12,16), "imageCount");
+        },
+		
+        getFrameInfo: function(b, index) {
 
-        getVisibleFrames: function(b, index) {
-            var count = 0;
-            var bifIndexSearchAtPosition = 64 + (8 * index);
+            var bifIndexSearchAtPosition = this.headerByteSize + (8 * index);
+			
+            // console.log("---- var bifIndexSearchAtPosition = ", bifIndexSearchAtPosition);
+			
+            var indexBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+1].charCodeAt(0) & 0xff,
+                              b[bifIndexSearchAtPosition+2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+3].charCodeAt(0) & 0xff];
+            var frameIndex = ByteUtilites.shift32Bits(indexBytes,0);
+            // console.log("---- var frameIndex = ", frameIndex);
+
+            bifIndexSearchAtPosition += 4;
+
+            var frameOffsetBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+1].charCodeAt(0) & 0xff,
+                                    b[bifIndexSearchAtPosition+2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+3].charCodeAt(0) & 0xff];
+            frameOffset = ByteUtilites.shift32Bits(frameOffsetBytes,0);
+            
+            // console.log("---- var frameOffset = ", frameOffset);
+			
+            return [frameIndex, frameOffset];
+		},
+		
+        encodeImage: function(buffer) {
+            var forwardPNGEncodeString = "data:image/png;base64,";
+            var forwardJPEGEncodeString = "data:image/jpeg;base64,";
+			
+            // console.log("---- var buffer[] = ", buffer);
+
+            var base64Buffer = ByteUtilites.Base64.encode(buffer);
+            // console.log("---- var base64Buffer = ", base64Buffer);
+
+            // dump to the window
+            finalBase64Encode = forwardJPEGEncodeString + base64Buffer;
+
+            if ( buffer.slice(1,4) == "PNG" ) {
+                finalBase64Encode = forwardPNGEncodeString + base64Buffer;
+            }
+
+            // console.log("finalBase64Encode = ", finalBase64Encode);  
+			return finalBase64Encode;
+        },
+		
+        getFrame: function(b, index) {
+            var j = 0;
+            var buffer = "";
+			
+            frameByteIndex = this.getFrameInfo(b, index)[1];
+            nextFrameByteIndex = this.getFrameInfo(b, index+1)[1];
+
+            for (var i = frameByteIndex; i <= nextFrameByteIndex-1; i++ ) {
+                buffer += b[i];
+                j++;
+            }
+			
+			var finalBase64Encode = this.encodeImage(buffer);
+            document.getElementById("foundimage").setAttribute("src",finalBase64Encode);
+        },		
+
+        getSequenceOfFrames: function(b, startAtIndex, maxImageCount) {
+            var processImageCount = 0;
             var frameOffset = 0;
             var previousFrameOffset = 0;
             var offsetMessageInfo = "";
-            var forwardPNGEncodeString = "data:image/png;base64,"
-            var forwardJPEGEncodeString = "data:image/jpeg;base64,"
 
-            while( count <= WebBrowserInterface.imageFrameCount ) {
+            while( processImageCount <= maxImageCount ) {
+			
+                var frameInfo = this.getFrameInfo(b, startAtIndex);
+                var frameIndex = frameInfo[0];
+                var frameOffset = frameInfo[1];
 
-                var indexBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+1].charCodeAt(0) & 0xff,
-                                  b[bifIndexSearchAtPosition+2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+3].charCodeAt(0) & 0xff];
-                index = ByteUtilites.shift32Bits(indexBytes,0);
-                // console.log("---- var index = ", index);
+                offsetMessageInfo += "<br />" + " index: " + frameIndex + " fos bytes: " + frameOffset;
 
-                bifIndexSearchAtPosition += 4;
-
-                var frameOffsetBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+1].charCodeAt(0) & 0xff,
-                                        b[bifIndexSearchAtPosition+2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+3].charCodeAt(0) & 0xff];
-                frameOffset = ByteUtilites.shift32Bits(frameOffsetBytes,0);
-                // console.log("---- var frameOffset = ", frameOffset);
-
-                offsetMessageInfo += " index: " + index + " fos bytes: " + frameOffset + "<br />";
-
-                if ( count > 0 ) {
+                if ( processImageCount > 0 ) {
 
                     var j = 0;
                     var buffer = "";
@@ -101,36 +156,19 @@
                         j++;
                     }
 
-                    // console.log("---- var buffer[] = ", buffer);
-                    // mozilla and webkit specific. Use Base64.encode function if not working.
-                    // var base64Buffer = btoa(buffer);
-
-                    var base64Buffer = ByteUtilites.Base64.encode(buffer);
-                    // console.log("---- var base64Buffer = ", base64Buffer);
-
                     // dump to the window
-                    if ( count <= WebBrowserInterface.imageFrameCount ) {
-                        finalBase64Encode = forwardJPEGEncodeString + base64Buffer;
-
-                        if ( buffer.slice(1,4) == "PNG" ) {
-                            finalBase64Encode = forwardPNGEncodeString + base64Buffer;
-                        }
-
-                        // console.log("finalBase64Encode = ", finalBase64Encode);
-
-                       document.getElementById("image"+count).setAttribute("src",finalBase64Encode);
-                    }
+                    var finalBase64Encode = this.encodeImage(buffer);
+                    document.getElementById("image" + processImageCount).setAttribute("src", finalBase64Encode);
                 }
 
                 previousFrameOffset = frameOffset;
                 // console.log("---- var previousFrameOffset = ", previousFrameOffset);
 
-                bifIndexSearchAtPosition += 4;
-
-                count += 1;
+				startAtIndex += 1;
+                processImageCount += 1;
             }
 
-            document.getElementById("offsetMessageInfo").innerHTML = "offsetMessageInfo = " + offsetMessageInfo;
+            document.getElementById("offsetMessageInfo").innerHTML = "[offsetMessageInfo]" + offsetMessageInfo;
         }
     }
 
@@ -140,10 +178,7 @@
             // console.log("--- shift32Bits in: ", arr);
 
             // little endianness, shift 4 bytes in reverse
-            var out = (arr[offs+3] << 24) +
-                      (arr[offs+2] << 16) +
-                      (arr[offs+1] << 8) +
-                       arr[offs+0]
+            var out = (arr[offs+3] << 24) + (arr[offs+2] << 16) + (arr[offs+1] << 8) + arr[offs+0];
 
             // console.log("--- shift32Bits out: ", out);
 
@@ -201,6 +236,9 @@
         },
 
         uploadBifBlob: function(files) {
+            // reset the indices
+            this.reset();
+			
             if (!files) {
                 alert('Files not found!');
                 return;
@@ -211,32 +249,27 @@
                 return;
             }
 
-            // reset the indices
-            this.reset();
-
             var file = files[0];
-            var start = 0;
-            var stop = file.size - 1;
-
+			
             var reader = new FileReader();
 
             reader.onloadend = function(evt) {
                 if (evt.target.readyState == FileReader.DONE) {
-                    document.getElementById('byte_range').textContent = file.size + ' byte file'
+                    document.getElementById('bytes').textContent = ' bytes = ' + file.size;
 					
                     var result = evt.target.result;
                     WebBrowserInterface.bifBinary = result;
 					
                     // console.log("WebBrowserInterface.bifBinary = " + WebBrowserInterface.bifBinary);
 					
-                    WebBrowserInterface.bifImageCount = BifParser.getHeaderInfo(result);
-					
-                    if( WebBrowserInterface.bifImageCount < 1 ) {
+                    if ( !BifParser.getHeaderInfo(result) ) {
                         alert('Invalid bif file.');
                         return;
                     }
 					
-                    BifParser.getVisibleFrames(result, 0);
+                    WebBrowserInterface.bifImageCount = BifParser.getImageCount(result);
+					
+                    BifParser.getSequenceOfFrames(result, 0, WebBrowserInterface.imageFrameCount);
                 }
             };
 
@@ -262,19 +295,11 @@
                     alert('An error occurred reading this file.');
                 }
             }
-
-            var blob = file;
-
-            if (file.webkitSlice) {
-                var blob = file.webkitSlice(start, stop + 1);
-            } else if (file.mozSlice) {
-                var blob = file.mozSlice(start, stop + 1);
-            }
 	
-            reader.readAsBinaryString(blob);
+            reader.readAsBinaryString(file);
         },
 
-        skipToFrame: function(index) {
+        pushFrame: function(index) {
             // console.log("this.bifFrameIndex = " + this.bifFrameIndex + " this.bifImageCount = " + this.bifImageCount);
             // console.log("this.bifBinary (memory) = " + this.bifBinary.length);
 
@@ -289,52 +314,88 @@
             }
 
             this.bifFrameIndex += index;
-            BifParser.getVisibleFrames(this.bifBinary, this.bifFrameIndex);
+            BifParser.getSequenceOfFrames(this.bifBinary, this.bifFrameIndex, this.imageFrameCount);
+        },
+		
+        findFrame: function(index) {
+            if ( index < 1 ) {
+                alert("Minimum frame index is 1");
+                return;
+            }
+			
+            if ( index > this.bifImageCount ) {
+                alert("Maximum frame index is " + this.bifImageCount);
+                return;
+            }
+			
+            BifParser.getFrame(this.bifBinary, parseInt(index-1));
+        },
+		
+        initInterface: function() {
+            document.querySelector('.readBytesButtons').addEventListener('click', function(evt) {
+                if (evt.target.tagName.toLowerCase() == 'button') {
+                    var files = document.getElementById('files').files;
+                    WebBrowserInterface.uploadBifBlob(files);
+                }
+            }, false);
+		
+            document.querySelector('.updateIndexButtons').addEventListener('click', function(evt) {
+                if (evt.target.tagName.toLowerCase() == 'button') {
+                   var index = document.getElementById('imageindex').value;
+                   WebBrowserInterface.findFrame(index);
+                }
+            }, false);
         }
-
     }
 
 </script>
 </head>
-    <body>
+    <body onload="javascript:WebBrowserInterface.initInterface();">
 
     <fieldset>
 
         <legend>Upload Bif file</legend>
 
-        <input type="file" id="files" name="file" /> Read bytes: 
+        <input type="file" id="files" name="file" size="70" />
         <span class="readBytesButtons">
             <button id="testing">Read and Parse</button>
         </span>
-        <div id="byte_range"></div>
-
+		
         <hr/>
+		
+        <table>
+            <tr>
+                <td valign="top" style="padding:5px">
+                    <div id="bytes">bytes = </div>
+                    <div id="magicIdentifier">magicIdentifier = </div>
+                    <div id="version">version = </div>
+                    <div id="imageCount">imageCount = </div>
+                    <div id="timestampMultipler">timestampMultipler = </div>
+                </td>
+                <td valign="top" style="padding:5px">
+                    <div id="offsetMessageInfo">[offsetMessageInfo]</div>
+                </td>
+            </tr>
+        </table>
 
-        <div id="magic">magicIdentifier = </div>
-        <div id="version">version = </div>
-        <div id="imageCount">imageCount = </div>
-        <div id="timestampMultipler">timestampMultipler = </div>
-        <div id="offsetMessageInfo">offsetMessageInfo = </div><br />
-
-        <a href="javascript:WebBrowserInterface.skipToFrame(-1);">Backward</a> 
+        <button onclick="javascript:WebBrowserInterface.pushFrame(-1);"><<</button> 
         <img id="image1" /> 
         <img id="image2" /> 
         <img id="image3" /> 
         <img id="image4" /> 
-        <a href="javascript:WebBrowserInterface.skipToFrame(1);">Forward</a>
+        <button onclick="javascript:WebBrowserInterface.pushFrame(1);">>></button>
+		
+        <hr/>
+		
+        <input type="text" id="imageindex" size="3" />
+		
+        <span class="updateIndexButtons">
+            <button id="updateIndex">Find Image at Index</button>
+        </span>
+        <br /><br />
+        <img id="foundimage" /> 
 
     </fieldset>
-
-    <script type="text/javascript">
-
-        document.querySelector('.readBytesButtons').addEventListener('click', function(evt) {
-            if (evt.target.tagName.toLowerCase() == 'button') {
-                var files = document.getElementById('files').files;
-                WebBrowserInterface.uploadBifBlob(files);
-           }
-        }, false);
-
-    </script>
 
     </body>
 </html>
