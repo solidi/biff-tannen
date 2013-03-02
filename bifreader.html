@@ -75,10 +75,6 @@
 			var previousFrameOffset = 0;
 			var offsetMessageInfo = "";
 	
-			//http://www.sencha.com/forum/showthread.php?58110-Convert-Byte-Array-to-Image
-			//http://mrcoles.com/blog/making-images-byte-by-byte-javascript/
-			//http://blog.n01se.net/?p=248
-			//http://www.greywyvern.com/code/php/binary2base64
 			while(count <= WebBrowserInterface.imageFrameCount  /*index != -1*/) {
 	
 				var indexBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+1].charCodeAt(0) & 0xff,
@@ -136,7 +132,6 @@
 	
 	var ByteUtilites = {
 
-		//http://stackoverflow.com/questions/57803/how-to-convert-decimal-to-hex-in-javascript
 		decimalToHexString: function(number) {
 			return (number+0x10000).toString(16).substr(-4).toUpperCase();
 		},
@@ -188,7 +183,6 @@
 			return ((b[0+off].charCodeAt(0) & 0xFF) << 24) | ((b[1+off].charCodeAt(0) & 0xFF) << 16) | ((b[2+off].charCodeAt(0) & 0xFF) << 8) | b[3+off].charCodeAt(0) & 0xFF; 
 		},
 	
-		//http://stackoverflow.com/questions/1240408/reading-bytes-from-a-javascript-string
 		getIntAt: function(arr, offs ) {
 			//console.log("--- getIntAt in: ", arr);
 
@@ -203,8 +197,6 @@
 			return out;
 		},
 
-		//http://stackoverflow.com/questions/246801/how-can-you-encode-to-base64-using-javascript
-		//http://stackoverflow.com/questions/7431365/filereader-readasbinarystring-to-upload-files
 		Base64 : {
 
 			// private property
@@ -355,10 +347,6 @@
 			
 			var bifUpload = document.getElementById("files");
 			var bifFile = bifUpload.files[0];
-			
-			// https://bitbucket.org/bcl/homevideo/src/6413366ef1c8/server/makebif.py
-			// http://stackoverflow.com/questions/5605108/pack-unpack-functions-for-node-js
-			// http://www.html5rocks.com/en/tutorials/file/dndfiles/
 
 			console.log("File name: " + bifFile.fileName);
 			console.log("File size: " + bifFile.fileSize);
