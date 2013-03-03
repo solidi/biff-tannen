@@ -29,4 +29,5 @@ A BIF file is uploaded to the local client using the HTML5 File API. The BIF fil
 6. Mobile Platforms
 
 ### Future Features
-1. Local Store API support
+1. Local Storage API support
+2. Unit testing

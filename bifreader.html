@@ -15,12 +15,11 @@
 <script type="text/javascript">
 
     var BifParser = {
-	
         headerByteSize: 64,
 
         validateBifMagicString: function(magicIdentifier) {
             // 9 byte value
-            if ( magicIdentifier != 1179206281 ) {
+            if (magicIdentifier != 1179206281) {
                 return false;
             }
 
@@ -30,11 +29,11 @@
         getHeaderValue: function(b, title) {
             var rawBytes = Array();
 			
-            for ( var i = 0; i < b.length; i++ ) {
+            for (var i = 0; i < b.length; i++) {
                 rawBytes.push(b[i].charCodeAt(0) & 0xff);
             }
 			
-            var value = ByteUtilites.shift32Bits(rawBytes,0);
+            var value = ByteUtilites.shift32Bits(rawBytes, 0);
 
             // console.log("---- var " + title + " = ", value);
             document.getElementById(title).innerHTML = title + " = " + value;
@@ -43,53 +42,53 @@
         },
 
         getHeaderInfo: function(b) {
-            if( !b || b.length < this.headerByteSize ) {
+            if (!b || b.length < this.headerByteSize) {
                 return false;
             }
 			
-            var magicString = this.getHeaderValue(b.slice(0,9), "magicIdentifier");
+            var magicString = this.getHeaderValue(b.slice(0, 9), "magicIdentifier");
 
-            if ( !this.validateBifMagicString(magicString) ) {
+            if (!this.validateBifMagicString(magicString)) {
                 return false;
             }
 
-            var version = this.getHeaderValue(b.slice(8,12), "version");
+            var version = this.getHeaderValue(b.slice(8, 12), "version");
 			
-            if ( version != 0 ) {
+            if (version != 0) {
                 return false;
             }
 			
             var imageCount = this.getImageCount(b);
 			
-			if ( imageCount == 0 ) {
+			if (imageCount == 0) {
 				return false;
 			}
 			
-            var timestampMultipler = this.getHeaderValue(b.slice(16,20), "timestampMultipler");
+            var timestampMultipler = this.getHeaderValue(b.slice(16, 20), "timestampMultipler");
 
             return true;
         },
 		
         getImageCount: function(b) {
-            return this.getHeaderValue(b.slice(12,16), "imageCount");
+            return this.getHeaderValue(b.slice(12, 16), "imageCount");
         },
 		
         getFrameInfo: function(b, index) {
-
             var bifIndexSearchAtPosition = this.headerByteSize + (8 * index);
 			
             // console.log("---- var bifIndexSearchAtPosition = ", bifIndexSearchAtPosition);
 			
-            var indexBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+1].charCodeAt(0) & 0xff,
-                              b[bifIndexSearchAtPosition+2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+3].charCodeAt(0) & 0xff];
-            var frameIndex = ByteUtilites.shift32Bits(indexBytes,0);
+            var indexBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition + 1].charCodeAt(0) & 0xff,
+                              b[bifIndexSearchAtPosition + 2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition + 3].charCodeAt(0) & 0xff];
+            var frameIndex = ByteUtilites.shift32Bits(indexBytes, 0);
+
             // console.log("---- var frameIndex = ", frameIndex);
 
             bifIndexSearchAtPosition += 4;
 
-            var frameOffsetBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+1].charCodeAt(0) & 0xff,
-                                    b[bifIndexSearchAtPosition+2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition+3].charCodeAt(0) & 0xff];
-            frameOffset = ByteUtilites.shift32Bits(frameOffsetBytes,0);
+            var frameOffsetBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition + 1].charCodeAt(0) & 0xff,
+                                    b[bifIndexSearchAtPosition + 2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition + 3].charCodeAt(0) & 0xff];
+            frameOffset = ByteUtilites.shift32Bits(frameOffsetBytes, 0);
             
             // console.log("---- var frameOffset = ", frameOffset);
 			
@@ -103,16 +102,18 @@
             // console.log("---- var buffer[] = ", buffer);
 
             var base64Buffer = ByteUtilites.Base64.encode(buffer);
+
             // console.log("---- var base64Buffer = ", base64Buffer);
 
             // dump to the window
             finalBase64Encode = forwardJPEGEncodeString + base64Buffer;
 
-            if ( buffer.slice(1,4) == "PNG" ) {
+            if (buffer.slice(1, 4) == "PNG") {
                 finalBase64Encode = forwardPNGEncodeString + base64Buffer;
             }
 
-            // console.log("finalBase64Encode = ", finalBase64Encode);  
+            // console.log("finalBase64Encode = ", finalBase64Encode);
+
 			return finalBase64Encode;
         },
 		
@@ -121,15 +122,15 @@
             var buffer = "";
 			
             frameByteIndex = this.getFrameInfo(b, index)[1];
-            nextFrameByteIndex = this.getFrameInfo(b, index+1)[1];
+            nextFrameByteIndex = this.getFrameInfo(b, index + 1)[1];
 
-            for (var i = frameByteIndex; i <= nextFrameByteIndex-1; i++ ) {
+            for (var i = frameByteIndex; i <= nextFrameByteIndex - 1; i++) {
                 buffer += b[i];
                 j++;
             }
 			
 			var finalBase64Encode = this.encodeImage(buffer);
-            document.getElementById("foundimage").setAttribute("src",finalBase64Encode);
+            document.getElementById("foundimage").setAttribute("src", finalBase64Encode);
         },		
 
         getSequenceOfFrames: function(b, startAtIndex, maxImageCount) {
@@ -138,20 +139,18 @@
             var previousFrameOffset = 0;
             var offsetMessageInfo = "";
 
-            while( processImageCount <= maxImageCount ) {
-			
+            while (processImageCount <= maxImageCount) {
                 var frameInfo = this.getFrameInfo(b, startAtIndex);
                 var frameIndex = frameInfo[0];
                 var frameOffset = frameInfo[1];
 
                 offsetMessageInfo += "<br />" + " index: " + frameIndex + " fos bytes: " + frameOffset;
 
-                if ( processImageCount > 0 ) {
-
+                if (processImageCount > 0) {
                     var j = 0;
                     var buffer = "";
 
-                    for (var i = previousFrameOffset; i <= frameOffset-1; i++ ) {
+                    for (var i = previousFrameOffset; i <= frameOffset - 1; i++) {
                         buffer += b[i];
                         j++;
                     }
@@ -162,6 +161,7 @@
                 }
 
                 previousFrameOffset = frameOffset;
+
                 // console.log("---- var previousFrameOffset = ", previousFrameOffset);
 
 				startAtIndex += 1;
@@ -174,11 +174,10 @@
 
     var ByteUtilites = {
         shift32Bits: function(arr, offs) {
-		
             // console.log("--- shift32Bits in: ", arr);
 
             // little endianness, shift 4 bytes in reverse
-            var out = (arr[offs+3] << 24) + (arr[offs+2] << 16) + (arr[offs+1] << 8) + arr[offs+0];
+            var out = (arr[offs + 3] << 24) + (arr[offs + 2] << 16) + (arr[offs + 1] << 8) + arr[offs + 0];
 
             // console.log("--- shift32Bits out: ", out);
 
@@ -186,7 +185,6 @@
         },
 
         Base64 : {
-
             _keyStr : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
 
             encode : function (input) {
@@ -195,7 +193,6 @@
                 var i = 0;
 
                 while (i < input.length) {
-
                     chr1 = input.charCodeAt(i++) & 0xff;
                     chr2 = input.charCodeAt(i++) & 0xff;
                     chr3 = input.charCodeAt(i++) & 0xff;
@@ -262,7 +259,7 @@
 					
                     // console.log("WebBrowserInterface.bifBinary = " + WebBrowserInterface.bifBinary);
 					
-                    if ( !BifParser.getHeaderInfo(result) ) {
+                    if (!BifParser.getHeaderInfo(result)) {
                         alert('Invalid bif file.');
                         return;
                     }
@@ -277,22 +274,22 @@
                 // console.log("error reading: code " + evt.target.error.code);
 
                 switch(evt.target.error.code) {
-                case evt.target.error.NOT_FOUND_ERR:
-                    alert('evt.target.error.NOT_FOUND_ERR');
-                    break;
-                case evt.target.error.NOT_READABLE_ERR:
-                    alert('evt.target.error.NOT_READABLE_ERRR');
-                    break;
-                case evt.target.error.ENCODING_ERR:
-                    alert('evt.target.error.ENCODING_ERR');
-                    break;
-                case evt.target.error.SECURITY_ERR:
-                    alert('evt.target.error.SECURITY_ERR');
-                    break;
-                case evt.target.error.ABORT_ERR:
-                    break;
-                default:
-                    alert('An error occurred reading this file.');
+                    case evt.target.error.NOT_FOUND_ERR:
+                        alert('evt.target.error.NOT_FOUND_ERR');
+                        break;
+                    case evt.target.error.NOT_READABLE_ERR:
+                        alert('evt.target.error.NOT_READABLE_ERRR');
+                        break;
+                    case evt.target.error.ENCODING_ERR:
+                        alert('evt.target.error.ENCODING_ERR');
+                        break;
+                    case evt.target.error.SECURITY_ERR:
+                        alert('evt.target.error.SECURITY_ERR');
+                        break;
+                    case evt.target.error.ABORT_ERR:
+                        break;
+                    default:
+                        alert('An error occurred reading this file.');
                 }
             }
 	
@@ -304,12 +301,12 @@
             // console.log("this.bifBinary (memory) = " + this.bifBinary.length);
 
             // backward protection
-            if ( this.bifFrameIndex + index < 0 ) {
+            if (this.bifFrameIndex + index < 0) {
                 return;
             }
 
             // forward protection
-            if ( index != -1 && (this.bifFrameIndex >= (this.bifImageCount - this.imageFrameCount)) ) {
+            if (index != -1 && (this.bifFrameIndex >= (this.bifImageCount - this.imageFrameCount))) {
                 return;
             }
 
@@ -318,17 +315,17 @@
         },
 		
         findFrame: function(index) {
-            if ( index < 1 ) {
+            if (index < 1) {
                 alert("Minimum frame index is 1");
                 return;
             }
 			
-            if ( index > this.bifImageCount ) {
+            if (index > this.bifImageCount) {
                 alert("Maximum frame index is " + this.bifImageCount);
                 return;
             }
 			
-            BifParser.getFrame(this.bifBinary, parseInt(index-1));
+            BifParser.getFrame(this.bifBinary, parseInt(index - 1));
         },
 		
         initInterface: function() {
