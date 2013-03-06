@@ -17,7 +17,9 @@
     var BifParser = {
         headerByteSize: 64,
 
-        validateBifMagicString: function(magicIdentifier) {
+        validateBifMagicString: function(b) {
+            var magicIdentifier = this.getMagicIdentifier(b);
+            
             // 9 byte value
             if (magicIdentifier != 1179206281) {
                 return false;
@@ -41,38 +43,66 @@
             return value;
         },
 
-        getHeaderInfo: function(b) {
+        hasHeader: function(b) {
             if (!b || b.length < this.headerByteSize) {
                 return false;
             }
-			
-            var magicString = this.getHeaderValue(b.slice(0, 9), "magicIdentifier");
-
-            if (!this.validateBifMagicString(magicString)) {
-                return false;
-            }
-
-            var version = this.getHeaderValue(b.slice(8, 12), "version");
-			
-            if (version != 0) {
-                return false;
-            }
-			
-            var imageCount = this.getImageCount(b);
-			
-			if (imageCount == 0) {
-				return false;
-			}
-			
-            var timestampMultipler = this.getHeaderValue(b.slice(16, 20), "timestampMultipler");
 
             return true;
         },
-		
+
+        hasImages: function(b) {
+            if (this.getImageCount(b) <= 0) {
+                return false;
+            }
+            
+            return true;
+        },
+
+        getMagicIdentifier: function(b) {
+            return this.getHeaderValue(b.slice(0, 9), "magicIdentifier");
+        },
+
+        getVersion: function(b) {
+            return this.getHeaderValue(b.slice(8, 12), "version");
+        },
+
         getImageCount: function(b) {
             return this.getHeaderValue(b.slice(12, 16), "imageCount");
         },
-		
+
+        getTimestampMultipler: function(b) {
+            return this.getHeaderValue(b.slice(16, 20), "timestampMultipler");
+        },
+
+        hasValidHeader: function(b) {
+            if (!this.hasHeader(b)) {
+                return false;
+            }
+
+            if (!this.validateBifMagicString(b)) {
+                return false;
+            }
+
+            if (this.getVersion(b) != this.acceptsVersion()) {
+                return false;
+            }
+
+            if (!this.hasImages(b)) {
+                return false;
+            }
+
+            if (this.getTimestampMultipler(b) < 1) {
+                return false;
+            }
+
+            return true;
+        },
+
+        acceptsVersion: function() {
+            return 0;
+        },
+
         getFrameInfo: function(b, index) {
             var bifIndexSearchAtPosition = this.headerByteSize + (8 * index);
 			
@@ -259,7 +289,7 @@
 					
                     // console.log("WebBrowserInterface.bifBinary = " + WebBrowserInterface.bifBinary);
 					
-                    if (!BifParser.getHeaderInfo(result)) {
+                    if (!BifParser.hasValidHeader(result)) {
                         alert('Invalid bif file.');
                         return;
                     }
