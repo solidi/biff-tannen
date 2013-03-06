@@ -41,14 +41,14 @@ Future Features
 ---------------
 
 1. Unit testing
-    - Coverage 100%
+    - [ ] Coverage 100%
 2. Local Storage
-    - Save to disk
-    - Disk or memory options
-    - Caching
+    - [ ] Save to disk
+    - [ ] Disk or memory options
+    - [ ] Caching
 3. WebGL Acceleration
-    - Textured images in parallel
-    - Swipe acceleration
+    - [ ] Textured images in parallel
+    - [ ] Swipe acceleration
 
 Goal
 ----
