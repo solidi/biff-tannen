@@ -19,7 +19,7 @@
 
         validateBifMagicString: function(b) {
             var magicIdentifier = this.getMagicIdentifier(b);
-            
+
             // 9 byte value
             if (magicIdentifier != 1179206281) {
                 return false;
@@ -27,14 +27,14 @@
 
             return true;
         },
-		
+
         getHeaderValue: function(b, title) {
             var rawBytes = Array();
-			
+
             for (var i = 0; i < b.length; i++) {
                 rawBytes.push(b[i].charCodeAt(0) & 0xff);
             }
-			
+
             var value = ByteUtilites.shift32Bits(rawBytes, 0);
 
             // console.log("---- var " + title + " = ", value);
@@ -55,7 +55,7 @@
             if (this.getImageCount(b) <= 0) {
                 return false;
             }
-            
+
             return true;
         },
 
@@ -105,9 +105,9 @@
 
         getFrameInfo: function(b, index) {
             var bifIndexSearchAtPosition = this.headerByteSize + (8 * index);
-			
+
             // console.log("---- var bifIndexSearchAtPosition = ", bifIndexSearchAtPosition);
-			
+
             var indexBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition + 1].charCodeAt(0) & 0xff,
                               b[bifIndexSearchAtPosition + 2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition + 3].charCodeAt(0) & 0xff];
             var frameIndex = ByteUtilites.shift32Bits(indexBytes, 0);
@@ -119,16 +119,16 @@
             var frameOffsetBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition + 1].charCodeAt(0) & 0xff,
                                     b[bifIndexSearchAtPosition + 2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition + 3].charCodeAt(0) & 0xff];
             frameOffset = ByteUtilites.shift32Bits(frameOffsetBytes, 0);
-            
+
             // console.log("---- var frameOffset = ", frameOffset);
-			
+
             return [frameIndex, frameOffset];
-		},
-		
+        },
+
         encodeImage: function(buffer) {
             var forwardPNGEncodeString = "data:image/png;base64,";
             var forwardJPEGEncodeString = "data:image/jpeg;base64,";
-			
+
             // console.log("---- var buffer[] = ", buffer);
 
             var base64Buffer = ByteUtilites.Base64.encode(buffer);
@@ -144,13 +144,13 @@
 
             // console.log("finalBase64Encode = ", finalBase64Encode);
 
-			return finalBase64Encode;
+            return finalBase64Encode;
         },
-		
+
         getFrame: function(b, index) {
             var j = 0;
             var buffer = "";
-			
+
             frameByteIndex = this.getFrameInfo(b, index)[1];
             nextFrameByteIndex = this.getFrameInfo(b, index + 1)[1];
 
@@ -158,10 +158,10 @@
                 buffer += b[i];
                 j++;
             }
-			
-			var finalBase64Encode = this.encodeImage(buffer);
+
+            var finalBase64Encode = this.encodeImage(buffer);
             document.getElementById("foundimage").setAttribute("src", finalBase64Encode);
-        },		
+        },
 
         getSequenceOfFrames: function(b, startAtIndex, maxImageCount) {
             var processImageCount = 0;
@@ -194,7 +194,7 @@
 
                 // console.log("---- var previousFrameOffset = ", previousFrameOffset);
 
-				startAtIndex += 1;
+                startAtIndex += 1;
                 processImageCount += 1;
             }
 
@@ -245,9 +245,9 @@
 
                 return output;
             }
-			
+
         }
-		
+
     }
 
     var WebBrowserInterface = {
@@ -265,7 +265,7 @@
         uploadBifBlob: function(files) {
             // reset the indices
             this.reset();
-			
+
             if (!files) {
                 alert('Files not found!');
                 return;
@@ -277,25 +277,25 @@
             }
 
             var file = files[0];
-			
+
             var reader = new FileReader();
 
             reader.onloadend = function(evt) {
                 if (evt.target.readyState == FileReader.DONE) {
                     document.getElementById('bytes').textContent = ' bytes = ' + file.size;
-					
+
                     var result = evt.target.result;
                     WebBrowserInterface.bifBinary = result;
-					
+
                     // console.log("WebBrowserInterface.bifBinary = " + WebBrowserInterface.bifBinary);
-					
+
                     if (!BifParser.hasValidHeader(result)) {
                         alert('Invalid bif file.');
                         return;
                     }
-					
+
                     WebBrowserInterface.bifImageCount = BifParser.getImageCount(result);
-					
+
                     BifParser.getSequenceOfFrames(result, 0, WebBrowserInterface.imageFrameCount);
                 }
             };
@@ -322,7 +322,7 @@
                         alert('An error occurred reading this file.');
                 }
             }
-	
+
             reader.readAsBinaryString(file);
         },
 
@@ -343,21 +343,21 @@
             this.bifFrameIndex += index;
             BifParser.getSequenceOfFrames(this.bifBinary, this.bifFrameIndex, this.imageFrameCount);
         },
-		
+
         findFrame: function(index) {
             if (index < 1) {
                 alert("Minimum frame index is 1");
                 return;
             }
-			
+
             if (index > this.bifImageCount) {
                 alert("Maximum frame index is " + this.bifImageCount);
                 return;
             }
-			
+
             BifParser.getFrame(this.bifBinary, parseInt(index - 1));
         },
-		
+
         initInterface: function() {
             document.querySelector('.readBytesButtons').addEventListener('click', function(evt) {
                 if (evt.target.tagName.toLowerCase() == 'button') {
@@ -365,7 +365,7 @@
                     WebBrowserInterface.uploadBifBlob(files);
                 }
             }, false);
-		
+
             document.querySelector('.updateIndexButtons').addEventListener('click', function(evt) {
                 if (evt.target.tagName.toLowerCase() == 'button') {
                    var index = document.getElementById('imageindex').value;
@@ -387,9 +387,9 @@
         <span class="readBytesButtons">
             <button id="testing">Read and Parse</button>
         </span>
-		
+
         <hr/>
-		
+
         <table>
             <tr>
                 <td valign="top" style="padding:5px">
@@ -411,11 +411,11 @@
         <img id="image3" /> 
         <img id="image4" /> 
         <button onclick="javascript:WebBrowserInterface.pushFrame(1);">>></button>
-		
+
         <hr/>
-		
+
         <input type="text" id="imageindex" size="3" />
-		
+
         <span class="updateIndexButtons">
             <button id="updateIndex">Find Image at Index</button>
         </span>
