@@ -20,33 +20,38 @@ BIF files are transmitted synchronously for client rendering. A BIF file can con
 
 How This Works
 --------------
-A BIF file is uploaded to the local client using the HTML5 File API. The BIF file is validated and its header information is read. The first few frames are read at the defined indices. Images are read in-memory and rendered through to <img src> tags. The images are encoded as base64 for visual rendering. No disk writes are used. A requested image index can also be displayed.
+
+A BIF file is uploaded to the local client using the HTML5 File API. The BIF file is validated and its header information is read. The first few frames are read at the defined indices. Images are read in-memory and rendered through image tags. The images are encoded as base64 for visual rendering. No disk writes are used. A requested image index can also be displayed.
 
 Whats Used
 ----------
+
 1. JavaScript
-2. HTML5 File API
+1. HTML5 File API
 
 Supported
 ---------
 
-1. Latest Chrome
-2. Latest Firefox
-3. Latest Opera
-4. IE 10
-5. Samsung TV 3.0
-6. Mobile Platforms
+1. Latest Chrome (Yes)
+1. Latest Firefox (Yes)
+1. Latest Opera (Yes)
+1. Latest Safari (Yes)
+1. IE 10 (Requires testing)
+1. Samsung TV 3.0 (3.0 SDK supports binary operation)
+1. Mobile Platforms (when cross origin download is supported)
 
 Future Features
 ---------------
 
 1. Unit testing
     - [ ] Coverage 100%
-2. Local Storage
+1. Cross Origin
+    - [ ] Download bif file outside local client
+1. Local Storage
     - [ ] Save to disk
     - [ ] Disk or memory options
     - [ ] Caching
-3. WebGL Acceleration
+1. WebGL Acceleration
     - [ ] Textured images in parallel
     - [ ] Swipe acceleration
 
