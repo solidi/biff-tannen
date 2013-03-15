@@ -28,7 +28,7 @@
             return true;
         },
 
-        getHeaderValue: function(b, title) {
+        getHeaderValue: function(b) {
             var rawBytes = Array();
 
             for (var i = 0; i < b.length; i++) {
@@ -36,9 +36,6 @@
             }
 
             var value = ByteUtilites.shift32Bits(rawBytes, 0);
-
-            // console.log("---- var " + title + " = ", value);
-            document.getElementById(title).innerHTML = title + " = " + value;
 
             return value;
         },
@@ -60,19 +57,19 @@
         },
 
         getMagicIdentifier: function(b) {
-            return this.getHeaderValue(b.slice(0, 9), "magicIdentifier");
+            return this.getHeaderValue(b.slice(0, 9));
         },
 
         getVersion: function(b) {
-            return this.getHeaderValue(b.slice(8, 12), "version");
+            return this.getHeaderValue(b.slice(8, 12));
         },
 
         getImageCount: function(b) {
-            return this.getHeaderValue(b.slice(12, 16), "imageCount");
+            return this.getHeaderValue(b.slice(12, 16));
         },
 
         getTimestampMultipler: function(b) {
-            return this.getHeaderValue(b.slice(16, 20), "timestampMultipler");
+            return this.getHeaderValue(b.slice(16, 20));
         },
 
         hasValidHeader: function(b) {
@@ -108,16 +105,16 @@
 
             // console.log("---- var bifIndexSearchAtPosition = ", bifIndexSearchAtPosition);
 
-            var indexBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition + 1].charCodeAt(0) & 0xff,
-                              b[bifIndexSearchAtPosition + 2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition + 3].charCodeAt(0) & 0xff];
+            var indexBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff, b[bifIndexSearchAtPosition + 1].charCodeAt(0) & 0xff,
+                              b[bifIndexSearchAtPosition + 2].charCodeAt(0) & 0xff, b[bifIndexSearchAtPosition + 3].charCodeAt(0) & 0xff];
             var frameIndex = ByteUtilites.shift32Bits(indexBytes, 0);
 
             // console.log("---- var frameIndex = ", frameIndex);
 
             bifIndexSearchAtPosition += 4;
 
-            var frameOffsetBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition + 1].charCodeAt(0) & 0xff,
-                                    b[bifIndexSearchAtPosition + 2].charCodeAt(0) & 0xff,b[bifIndexSearchAtPosition + 3].charCodeAt(0) & 0xff];
+            var frameOffsetBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff, b[bifIndexSearchAtPosition + 1].charCodeAt(0) & 0xff,
+                                    b[bifIndexSearchAtPosition + 2].charCodeAt(0) & 0xff, b[bifIndexSearchAtPosition + 3].charCodeAt(0) & 0xff];
             frameOffset = ByteUtilites.shift32Bits(frameOffsetBytes, 0);
 
             // console.log("---- var frameOffset = ", frameOffset);
@@ -277,26 +274,27 @@
             }
 
             var file = files[0];
-
             var reader = new FileReader();
 
             reader.onloadend = function(evt) {
                 if (evt.target.readyState == FileReader.DONE) {
                     document.getElementById('bytes').textContent = ' bytes = ' + file.size;
 
-                    var result = evt.target.result;
-                    WebBrowserInterface.bifBinary = result;
+                    var bufferResult = evt.target.result;
+                    WebBrowserInterface.bifBinary = bufferResult;
 
                     // console.log("WebBrowserInterface.bifBinary = " + WebBrowserInterface.bifBinary);
 
-                    if (!BifParser.hasValidHeader(result)) {
+                    if (!BifParser.hasValidHeader(bufferResult)) {
                         alert('Invalid bif file.');
                         return;
                     }
 
-                    WebBrowserInterface.bifImageCount = BifParser.getImageCount(result);
+                    WebBrowserInterface.printBifFileSpecifics(bufferResult);
 
-                    BifParser.getSequenceOfFrames(result, 0, WebBrowserInterface.imageFrameCount);
+                    WebBrowserInterface.bifImageCount = BifParser.getImageCount(bufferResult);
+
+                    BifParser.getSequenceOfFrames(bufferResult, 0, WebBrowserInterface.imageFrameCount);
                 }
             };
 
@@ -324,6 +322,20 @@
             }
 
             reader.readAsBinaryString(file);
+        },
+
+        printBifFileSpecifics: function(b) {
+            var value = BifParser.getMagicIdentifier(b);
+            document.getElementById("magicIdentifier").innerHTML = "magicIdentifier = " + value;
+            
+            value = BifParser.getVersion(b);
+            document.getElementById("version").innerHTML = "version = " + value;
+
+            value = BifParser.getImageCount(b);
+            document.getElementById("imageCount").innerHTML = "imageCount = " + value;
+
+            value = BifParser.getTimestampMultipler(b);
+            document.getElementById("timestampMultipler").innerHTML = "timestampMultipler = " + value;
         },
 
         pushFrame: function(index) {
