@@ -45,7 +45,7 @@ Future Features
 
 1. Unit testing
     - [ ] Coverage 100%
-1. Cross Origin
+1. Cross Origin (CORS/xhr2)
     - [ ] Download bif file outside local client
 1. Local Storage
     - [ ] Save to disk
