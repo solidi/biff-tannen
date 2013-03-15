@@ -163,6 +163,7 @@
             var processImageCount = 0;
             var frameOffset = 0;
             var previousFrameOffset = 0;
+            var setOfFrames = [];
             var offsetMessageInfo = "";
 
             while (processImageCount <= maxImageCount) {
@@ -181,9 +182,7 @@
                         j++;
                     }
 
-                    // dump to the window
-                    var finalBase64Encode = this.encodeImage(buffer);
-                    document.getElementById("image" + processImageCount).setAttribute("src", finalBase64Encode);
+                    setOfFrames[processImageCount] = this.encodeImage(buffer);
                 }
 
                 previousFrameOffset = frameOffset;
@@ -194,7 +193,11 @@
                 processImageCount += 1;
             }
 
+            // A detached event debug logger is best. In addition, this can handle all console.log()'s as well.
+            // Leave the abstraction for a seperate task.
             document.getElementById("offsetMessageInfo").innerHTML = "[offsetMessageInfo]" + offsetMessageInfo;
+
+            return setOfFrames;
         }
     }
 
@@ -243,7 +246,6 @@
             }
 
         }
-
     }
 
     var WebBrowserInterface = {
@@ -293,7 +295,8 @@
 
                     WebBrowserInterface.bifImageCount = BifParser.getImageCount(bufferResult);
 
-                    BifParser.getSequenceOfFrames(bufferResult, 0, WebBrowserInterface.imageFrameCount);
+                    var frames = BifParser.getSequenceOfFrames(bufferResult, 0, WebBrowserInterface.imageFrameCount);
+                    WebBrowserInterface.placeFrames(frames);
                 }
             };
 
@@ -352,7 +355,19 @@
             }
 
             this.bifFrameIndex += index;
-            BifParser.getSequenceOfFrames(this.bifBinary, this.bifFrameIndex, this.imageFrameCount);
+
+            var frames = BifParser.getSequenceOfFrames(this.bifBinary, this.bifFrameIndex, this.imageFrameCount);
+            this.placeFrames(frames);
+        },
+
+        placeFrames: function(frames) {
+            if (frames.length < 1) {
+                return;
+            }
+
+            for (var i = 1; i < frames.length; i++) {
+                document.getElementById("image" + i).setAttribute("src", frames[i]);
+            }
         },
 
         findFrame: function(index) {
