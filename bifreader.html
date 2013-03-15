@@ -156,8 +156,7 @@
                 j++;
             }
 
-            var finalBase64Encode = this.encodeImage(buffer);
-            document.getElementById("foundimage").setAttribute("src", finalBase64Encode);
+            return this.encodeImage(buffer);
         },
 
         getSequenceOfFrames: function(b, startAtIndex, maxImageCount) {
@@ -367,7 +366,9 @@
                 return;
             }
 
-            BifParser.getFrame(this.bifBinary, parseInt(index - 1));
+            var finalBase64Encode = BifParser.getFrame(this.bifBinary, parseInt(index - 1));
+
+            document.getElementById("foundimage").setAttribute("src", finalBase64Encode);
         },
 
         initInterface: function() {
