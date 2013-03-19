@@ -90,16 +90,22 @@
 
             // console.log("---- var bifIndexSearchAtPosition = ", bifIndexSearchAtPosition);
 
-            var indexBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff, b[bifIndexSearchAtPosition + 1].charCodeAt(0) & 0xff,
-                              b[bifIndexSearchAtPosition + 2].charCodeAt(0) & 0xff, b[bifIndexSearchAtPosition + 3].charCodeAt(0) & 0xff];
+            var indexBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff, 
+                              b[bifIndexSearchAtPosition + 1].charCodeAt(0) & 0xff,
+                              b[bifIndexSearchAtPosition + 2].charCodeAt(0) & 0xff, 
+                              b[bifIndexSearchAtPosition + 3].charCodeAt(0) & 0xff];
+
             var frameIndex = ByteUtilites.shift32Bits(indexBytes, 0);
 
             // console.log("---- var frameIndex = ", frameIndex);
 
             bifIndexSearchAtPosition += 4;
 
-            var frameOffsetBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff, b[bifIndexSearchAtPosition + 1].charCodeAt(0) & 0xff,
-                                    b[bifIndexSearchAtPosition + 2].charCodeAt(0) & 0xff, b[bifIndexSearchAtPosition + 3].charCodeAt(0) & 0xff];
+            var frameOffsetBytes = [b[bifIndexSearchAtPosition].charCodeAt(0) & 0xff, 
+                                    b[bifIndexSearchAtPosition + 1].charCodeAt(0) & 0xff,
+                                    b[bifIndexSearchAtPosition + 2].charCodeAt(0) & 0xff, 
+                                    b[bifIndexSearchAtPosition + 3].charCodeAt(0) & 0xff];
+
             frameOffset = ByteUtilites.shift32Bits(frameOffsetBytes, 0);
 
             // console.log("---- var frameOffset = ", frameOffset);
