@@ -72,7 +72,7 @@
                     default:
                         alert('An error occurred reading this file.');
                 }
-            }
+            };
 
             reader.readAsBinaryString(file);
         },
@@ -132,7 +132,7 @@
                 return;
             }
 
-            var finalBase64Encode = BifParser.getFrame(this.bifBinary, parseInt(index - 1));
+            var finalBase64Encode = BifParser.getFrame(this.bifBinary, parseInt(index - 1, 10));
 
             document.getElementById("foundimage").setAttribute("src", finalBase64Encode);
         },
@@ -152,4 +152,4 @@
                 }
             }, false);
         }
-    }
+    };

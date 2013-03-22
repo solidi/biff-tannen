@@ -160,7 +160,7 @@
             while (processImageCount <= maxImageCount) {
                 var frameInfo = this.getFrameInfo(b, startAtIndex);
                 var frameIndex = frameInfo[0];
-                var frameOffset = frameInfo[1];
+                frameOffset = frameInfo[1];
 
                 offsetMessageInfo += "<br />" + " index: " + frameIndex + " fos bytes: " + frameOffset;
 
@@ -190,4 +190,4 @@
 
             return setOfFrames;
         }
-    }
+    };

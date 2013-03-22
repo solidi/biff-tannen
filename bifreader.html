@@ -10,6 +10,11 @@
         body { 
             font: 14px Arial; 
         }
+
+        td {
+            vertical-align: text-top;
+            padding: 5px;
+        }
     </style>
 
     <script type="text/javascript" src="BifParser.js"></script>
@@ -23,7 +28,7 @@
 
         <legend>Upload Bif file</legend>
 
-        <input type="file" id="files" name="file" size="70" />
+        <input type="file" id="files" name="file" />
         <span class="readBytesButtons">
             <button id="testing">Read and Parse</button>
         </span>
@@ -32,24 +37,24 @@
 
         <table>
             <tr>
-                <td valign="top" style="padding:5px">
+                <td>
                     <div id="bytes">bytes = </div>
                     <div id="magicIdentifier">magicIdentifier = </div>
                     <div id="version">version = </div>
                     <div id="imageCount">imageCount = </div>
                     <div id="timestampMultipler">timestampMultipler = </div>
                 </td>
-                <td valign="top" style="padding:5px">
+                <td>
                     <div id="offsetMessageInfo">[offsetMessageInfo]</div>
                 </td>
             </tr>
         </table>
 
-        <button onclick="javascript:WebBrowserInterface.pushFrame(-1);"><<</button> 
-        <img id="image1" /> 
-        <img id="image2" /> 
-        <img id="image3" /> 
-        <img id="image4" /> 
+        <button onclick="javascript:WebBrowserInterface.pushFrame(-1);">&lt;&lt;</button> 
+        <img id="image1" alt="" /> 
+        <img id="image2" alt="" /> 
+        <img id="image3" alt="" /> 
+        <img id="image4" alt="" /> 
         <button onclick="javascript:WebBrowserInterface.pushFrame(1);">>></button>
 
         <hr/>
@@ -60,7 +65,7 @@
             <button id="updateIndex">Find Image at Index</button>
         </span>
         <br /><br />
-        <img id="foundimage" /> 
+        <img id="foundimage" alt="" /> 
 
     </fieldset>
 
